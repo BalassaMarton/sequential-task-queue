@@ -1,0 +1,12 @@
+{
+  "name": "sequential-task-queue",
+  "version": "1.0.0",
+  "description": "Sequential task queue for node and the browser",
+  "author": {
+    "name": "BalassaMarton"
+  },
+  "devDependencies": {
+    "mocha": "^3.0.2",
+    "sinon": "^1.17.5"
+  }
+}
