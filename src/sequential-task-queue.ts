@@ -1,128 +1,275 @@
-﻿export interface ITaskQueueOptions {
-    name?: string;    
-    errorHandler?: (e: any) => any;
+﻿/** 
+ * Represents an object that schedules a function for asynchronous execution.
+ * The default implementation used by {@link SequentialTaskQueue} calls {@link setTimeout}
+ * @param { Function } callback: The function that needs to be scheduled. 
+ * 
+  */
+export interface Scheduler {
+    schedule(callback: Function): void;
+}
+
+/**
+ * Object used for passing configuration options to the {@link SequentialTaskQueue} constructor.
+ */
+export interface TaskQueueOptions {
+    /**
+     * Assigns a name to the task queue for diagnostic purposes. The name does not need to be unique.
+     */
+    name?: string;
+    /**
+     * Default timeout (in milliseconds) for tasks pushed to the queue. Default is 0 (no timeout).
+     *  */    
     timeout?: number;
+    /**
+     * Scheduler used by the queue. 
+     */
+    scheduler?: Scheduler;
 }
 
-export interface ICancellationToken {
+/**
+ * Options object for individual tasks.
+ */
+export interface TaskOptions {
+    /**
+     * Timeout for the task, in milliseconds. 
+     * */
+    timeout?: number;
+
+    /**
+     * Arguments to pass to the task. Useful for minimalising the number of Function objects and closures created 
+     * when pushing the same task multiple times, with different arguments.  
+     * 
+     * @example
+     * // The following code creates a single Function object and no closures:
+     * for (let i = 0; i < 100; i++)
+     *     queue.push(process, {args: [i]});
+     * function process(n) {
+     *     console.log(n);
+     * }
+     */
+    args?: any;    
+}
+
+/**
+ * Provides the API for querying and invoking task cancellation.
+ */
+export interface CancellationToken {
+    /**
+     * When `true`, indicates that the task has been cancelled. 
+     */
     cancelled?: boolean;
-    reason?: string;
+    /**
+     * An arbitrary object representing the reason of the cancellation. Can be a member of the {@link cancellationTokenReasons} object or an `Error`, etc.  
+     */
+    reason?: any;
+    /**
+     * Cancels the task for which the cancellation token was created.
+     * @param reason - The reason of the cancellation, see {@link CancellationToken#reason} 
+     */
+    cancel(reason?: any);
 }
 
+/**
+ * Standard cancellation reasons. {@link SequentialTaskQueue} sets {@link CancellationToken#reason} 
+ * to one of these values when cancelling a task for a reason other than the user code calling
+ * {@link CancellationToken#cancel}.    
+ */
 export var cancellationTokenReasons = {
-    timeout: "timeout",
-    cancel: "cancel"
+    /** Used when the task was cancelled in response to a call to {@link SequentialTaskQueue#cancel} */
+    cancel: Object.create(null),
+    /** Used when the task was cancelled after its timeout has passed */
+    timeout: Object.create(null)
 }
 
-export class TimeoutError extends Error {
+/**
+ * Standard event names used by {@link SequentialTaskQueue}
+ */
+export var sequentialTaskQueueEvents = {
+    drained: "drained",
+    error: "error",
+    timeout: "timeout"
 }
 
+/**
+ * FIFO task queue to run tasks in predictable order, without concurrency.
+ */
 export class SequentialTaskQueue {
 
-    private _errorHandler: (e: any) => void;
-    private _queue: ITaskEntry[] = [];
+    private queue: TaskEntry[] = [];
     private _isClosed: boolean = false;
-    private _waiters: Function[] = [];
-    private _timeout: number;
-    private _currentTask: ITaskEntry;
-
-    static defaultTimeout = 0;
+    private waiters: Function[] = [];
+    private defaultTimeout: number;
+    private currentTask: TaskEntry;
+    private scheduler: Scheduler;
+    private events: { [key: string]: Function[] };
 
     name: string;
 
+    /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue#push} on a closed queue will result in an exception. */
     get isClosed() {
         return this._isClosed;
     }
 
-    constructor(options?: ITaskQueueOptions) {
+    /** 
+     * Creates a new instance of {@link SequentialTaskQueue}
+     * @param {TaskQueueOptions} options - Configuration options for the task queue.
+    */
+    constructor(options?: TaskQueueOptions) {
         if (!options)
             options = {};
-        if (options.timeout === undefined || options.timeout === null)
-            options.timeout = SequentialTaskQueue.defaultTimeout;
-        this._timeout = options.timeout;
-        this.name = options.name;
-        this._errorHandler = options.errorHandler;
-    }
-
-    push(task: Function, timeout?: number): ICancellationToken {
-        if (this._isClosed)
-            throw new Error(`${this.name || "SequentialTaskQueue"} has been previously closed`);
-        var entry: ITaskEntry = {
-            fn: task,
-            timeout: timeout === undefined ? this._timeout : timeout,
-            cancellationToken: new CancellationToken()
+        this.defaultTimeout = options.timeout;
+        this.name = options.name || "SequentialTaskQueue";
+        this.scheduler = options.scheduler || {
+            schedule: cb => setTimeout(<typeof setTimeout>cb, 0)
         };
-        this._queue.push(entry);
-        this.schedule(() => this.next());
-        return entry.cancellationToken;
     }
 
-    cancel(): PromiseLike<any> {
-        if (this._currentTask) {
-            if (this._currentTask.timeoutHandle)
-                clearTimeout(this._currentTask.timeoutHandle);
-            this._currentTask.cancellationToken.cancel(cancellationTokenReasons.cancel);
-        }
-        this._queue.splice(0);
-        return this.wait();
-    }
-
-    close(cancel?: boolean): PromiseLike<any> {
+    /**
+     * Adds a new task to the queue.
+     * @param {Function} task - The function to call when the task is run
+     * @param {number} timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue. 
+     * @returns A {@link CancellationToken} that may be used to cancel the task before it completes.
+     */
+    push(task: Function, options?: TaskOptions): CancellationToken {
         if (this._isClosed)
-            return this.wait();
-        this._isClosed = true;
-        if (cancel)
-            return this.cancel();
+            throw new Error(`${this.name} has been previously closed`);
+        var taskEntry: TaskEntry = {
+            callback: task,
+            args: options && options.args ? (Array.isArray(options.args) ? options.args.slice() : [options.args]) : [],
+            timeout: options && options.timeout !== undefined ? options.timeout : this.defaultTimeout,
+            cancellationToken: {
+                cancel: (reason?) => this.cancelTask(taskEntry, reason)
+            }
+        };
+        taskEntry.args.push(taskEntry.cancellationToken);
+        this.queue.push(taskEntry);
+        this.scheduler.schedule(() => this.next());
+        return taskEntry.cancellationToken;
+    }
+
+    /**
+     * Cancels the currently running task (if any), and clears the queue.
+     * @returns {Promise} A Promise that is fulfilled when the queue is empty and the current task has been cancelled.
+     */
+    cancel(): PromiseLike<any> {
+        if (this.currentTask) 
+            this.cancelTask(this.currentTask, cancellationTokenReasons.cancel);
+        // emit a drained event if there were tasks waiting in the queue
+        if (this.queue.splice(0).length)
+            this.emit(sequentialTaskQueueEvents.drained);
         return this.wait();
     }
 
+    /**
+     * Closes the queue, preventing new tasks to be added. 
+     * Any calls to {@link SequentialTaskQueue#push} after closing the queue will result in an exception.
+     * @param {boolean} cancel - Indicates that the queue should also be cancelled.
+     * @returns {Promise} A Promise that is fulfilled when the queue has finished executing remaining tasks.  
+     */
+    close(cancel?: boolean): PromiseLike<any> {
+        if (!this._isClosed) {
+            this._isClosed = true;
+            if (cancel)
+                return this.cancel();
+        }
+        return this.wait();
+    }
+
+    /**
+     * Returns a promise that is fulfilled when the queue is empty.
+     * @returns {Promise}
+     */
     wait(): PromiseLike<any> {
-        if (!this._currentTask && this._queue.length === 0)
+        if (!this.currentTask && this.queue.length === 0)
             return Promise.resolve();
         return new Promise(resolve => {
-            this._waiters.push(resolve);
+            this.waiters.push(resolve);
         });
     }
 
-    onError(handler: (e: any) => void) {
-        this._errorHandler = handler;
+    /**
+     * Adds an event handler for a named event.
+     * @param {string} evt - Event name. See the readme for a list of valid events.
+     * @param {Function} handler - Event handler. When invoking the handler, the queue will set itself as the `this` argument of the call. 
+     */
+    on(evt: string, handler: Function) {
+        this.events = this.events || {};
+        (this.events[evt] || (this.events[evt] = [])).push(handler);     
+    }
+
+    /**
+     * Adds a single-shot event handler for a named event.
+     * @param {string} evt - Event name. See the readme for a list of valid events.
+     * @param {Function} handler - Event handler. When invoking the handler, the queue will set itself as the `this` argument of the call. 
+     */
+    once(evt: string, handler: Function) {
+        var cb = (...args: any[]) => {
+            this.off(evt, cb);
+            handler.apply(this, args);
+        };
+        this.on(evt, cb);
+    }
+
+    /**
+     * Removes an event handler.
+     * @param {string} evt - Event name
+     * @param {Function} handler - Event handler to be removed
+     */
+    off(evt: string, handler: Function) {
+        if (this.events) {
+            var list = this.events[evt];
+            if (list) {
+                var i = 0;
+                while (i < list.length) {
+                    if (list[i] === handler)
+                        list.splice(i, 1);
+                    else
+                        i++;
+                }
+            }
+        }
+    }
+
+    private emit(evt: string, ...args: any[]) {
+        if (this.events && this.events[evt])
+            try { 
+                this.events[evt].forEach(fn => fn.apply(this, args));
+            } catch (e) {
+                console.error(`${this.name}: Exception in '${evt}' event handler`, e);
+            }
     }
 
     private next() {
-        if (!this._currentTask) {
-            let task = this._currentTask = this._queue.shift();
+        // Try running the next task, if not currently running one 
+        if (!this.currentTask) {
+            var task = this.queue.shift();
+            // skip cancelled tasks
+            while (task && task.cancellationToken.cancelled)
+                task = this.queue.shift();
             if (task) {
                 try {
-                    if (task.cancellationToken.cancelled) {
-                        this.schedule(() => this.next());
-                        return;
-                    }
+                    this.currentTask = task;
                     if (task.timeout) {
-                        task.timeoutHandle = setTimeout(() => {
-                            task.timeoutHandle = undefined;
-                            task.cancellationToken.cancel(cancellationTokenReasons.timeout);
-                            this.handleError(new TimeoutError());
-                            if (this._currentTask === task)
-                                this.doneTask();
-                        }, task.timeout);
+                        task.timeoutHandle = setTimeout(
+                            () => {
+                                this.emit(sequentialTaskQueueEvents.timeout);
+                                this.cancelTask(task, cancellationTokenReasons.timeout);
+                            }, 
+                            task.timeout);
                     }
-                    let res = task.fn(task.cancellationToken);
+                    let res = task.callback.apply(undefined, task.args);
                     if (res && isPromise(res)) {
                         res.then(() => {
-                                if (this._currentTask === task)
-                                    this.doneTask();
+                                this.doneTask(task);
                             },
                             err => {
-                                this.handleError(err);
-                                if (this._currentTask === task)
-                                    this.doneTask();
+                                this.doneTask(task, err);
                             });
                     } else
-                        this.doneTask();
+                        this.doneTask(task);
 
                 } catch (e) {
-                    this.handleError(e);
-                    this.doneTask();
+                    this.doneTask(task, e);
                 }
             } else {
                 // queue is empty, call waiters
@@ -131,50 +278,44 @@ export class SequentialTaskQueue {
         }
     }
 
-    private doneTask() {
-        if (this._currentTask.timeoutHandle)
-            clearTimeout(this._currentTask.timeoutHandle);
-        this._currentTask = undefined;
-        if (!this._queue.length)
-            this.callWaiters();
-        else
-            this.schedule(() => this.next());
+    private cancelTask(task: TaskEntry, reason?: any) {
+        task.cancellationToken.cancelled = true;
+        task.cancellationToken.reason = reason;
+        this.doneTask(task);
+    }
+
+    private doneTask(task: TaskEntry, error?: any) {
+        if (task.timeoutHandle)
+            clearTimeout(task.timeoutHandle);
+        task.cancellationToken.cancel = noop;
+        if (error)
+            this.emit(sequentialTaskQueueEvents.error, error);
+        if (this.currentTask === task) {
+            this.currentTask = undefined;
+            if (!this.queue.length) {
+                this.emit(sequentialTaskQueueEvents.drained);
+                this.callWaiters();
+            }
+            else
+                this.scheduler.schedule(() => this.next());
+        }
     }
 
     private callWaiters() {
-        let waiters = this._waiters.splice(0);
+        let waiters = this.waiters.splice(0);
         waiters.forEach(waiter => waiter());
     }
-
-    private schedule(fn: Function) {
-        setTimeout(fn, 0);
-    }
-
-    private handleError(e: any) {
-        try {
-            if (typeof this._errorHandler === "function")
-                this._errorHandler(e);
-        } catch (ie) {
-            // suppress errors thrown in error handler
-        }
-    }
 }
 
-class CancellationToken implements ICancellationToken {
-    cancelled: boolean = false;
-    reason: string = null;
-
-    cancel(reason: string) {
-        this.cancelled = true;
-        this.reason = reason;
-    }
-}
-
-interface ITaskEntry {
-    fn: Function;
-    timeout: number;
+interface TaskEntry {
+    args: any[];
+    callback: Function;
+    timeout?: number;
     timeoutHandle?: any;
-    cancellationToken?: CancellationToken;
+    cancellationToken: CancellationToken;
+}
+
+function noop() {
 }
 
 function isPromise(obj: any): obj is PromiseLike<any> {

@@ -1,12 +1,30 @@
 {
   "name": "sequential-task-queue",
   "version": "1.0.0",
-  "description": "Sequential task queue for node and the browser",
+  "description": "FIFO task queue for node and the browser",
   "author": {
     "name": "BalassaMarton"
   },
+  "types": "dist/types/sequential-task-queue.d.ts",
+  "files": [
+    "dist",
+    "index.js"
+  ],
   "devDependencies": {
+    "@types/mocha": "^2.2.32",
+    "@types/node": "^6.0.41",
+    "@types/sinon": "^1.16.31",
+    "del": "^2.2.2",
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^3.0.1",
+    "gulp-rename": "^1.2.2",
+    "gulp-sourcemaps": "^1.6.0",
+    "gulp-template": "^4.0.0",
+    "gulp-typescript": "^3.0.1",
+    "jsdoc-to-markdown": "^1.3.7",
     "mocha": "^3.0.2",
-    "sinon": "^1.17.5"
+    "sinon": "^1.17.5",
+    "snip-text": "^1.0.0",
+    "typescript": "^2.0.3"
   }
 }

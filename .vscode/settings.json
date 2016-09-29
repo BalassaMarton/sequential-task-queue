@@ -1,0 +1,11 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.gitignore": false
+        //"src/**/*.js": true,
+        //"test/**/*.js": true
+    },
+    "typescript.tsdk": "node_modules/typescript/lib"
+
+}
