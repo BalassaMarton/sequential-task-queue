@@ -51,3 +51,7 @@ gulp.task("build", function() {
         .pipe(sourceMaps.write())
         .pipe(gulp.dest("./dist/lib"));
 });
+
+gulp.task("prepublish", function(){
+    return sequence("build", "test", "doc");
+});

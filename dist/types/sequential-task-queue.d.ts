@@ -1,16 +1,20 @@
 /**
  * Represents an object that schedules a function for asynchronous execution.
- * The default implementation used by {@link SequentialTaskQueue} calls {@link setTimeout}
- * @param { Function } callback: The function that needs to be scheduled.
- *
-  */
+ * The default implementation used by {@link SequentialTaskQueue} calls {@link setImmediate} when available,
+ * and {@link setTimeout} otherwise.
+ * @see {@link SequentialTaskQueue.defaultScheduler}
+ * @see {@link TaskQueueOptions#scheduler}
+ */
 export interface Scheduler {
+    /**
+     * Schedules a callback for asynchronous execution.
+     */
     schedule(callback: Function): void;
 }
 /**
  * Object used for passing configuration options to the {@link SequentialTaskQueue} constructor.
  */
-export interface TaskQueueOptions {
+export interface SequentialTaskQueueOptions {
     /**
      * Assigns a name to the task queue for diagnostic purposes. The name does not need to be unique.
      */
@@ -20,7 +24,7 @@ export interface TaskQueueOptions {
      *  */
     timeout?: number;
     /**
-     * Scheduler used by the queue.
+     * Scheduler used by the queue. Defaults to {@link SequentialTaskQueue.defaultScheduler}.
      */
     scheduler?: Scheduler;
 }
@@ -85,6 +89,7 @@ export declare var sequentialTaskQueueEvents: {
  * FIFO task queue to run tasks in predictable order, without concurrency.
  */
 export declare class SequentialTaskQueue {
+    static defaultScheduler: Scheduler;
     private queue;
     private _isClosed;
     private waiters;
@@ -99,7 +104,7 @@ export declare class SequentialTaskQueue {
      * Creates a new instance of {@link SequentialTaskQueue}
      * @param {TaskQueueOptions} options - Configuration options for the task queue.
     */
-    constructor(options?: TaskQueueOptions);
+    constructor(options?: SequentialTaskQueueOptions);
     /**
      * Adds a new task to the queue.
      * @param {Function} task - The function to call when the task is run

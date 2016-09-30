@@ -25,7 +25,7 @@ export interface SequentialTaskQueueOptions {
      *  */    
     timeout?: number;
     /**
-     * Scheduler used by the queue. 
+     * Scheduler used by the queue. Defaults to {@link SequentialTaskQueue.defaultScheduler}. 
      */
     scheduler?: Scheduler;
 }
