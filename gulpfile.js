@@ -36,20 +36,9 @@ gulp.task("doc:readme", function() {
 
 gulp.task("doc", ["doc:readme"], function(){});
 
-gulp.task("test:examples", function() {
-    return gulp.src("./examples/*.js")
-        .pipe(mocha({})); 
-});
-
-gulp.task("test:lib", function() {
-    return gulp.src("./test/*.js")
+gulp.task("test", ["tsc"], function() {
+    return gulp.src(["./test/*.js", "./examples/*.js"])
         .pipe(mocha({}));
-});
-
-gulp.task("test", function(done){
-    // Running Mocha tests in parallel resulted in weird errors, must run in sequence. 
-    // Also: removed the "tsc" task from subtask dependencies, so running them individually may fail  
-    sequence("tsc", "test:lib", "test:examples", done);    
 });
 
 gulp.task("build", function() {
