@@ -1,17 +1,21 @@
 ﻿/** 
  * Represents an object that schedules a function for asynchronous execution.
- * The default implementation used by {@link SequentialTaskQueue} calls {@link setTimeout}
- * @param { Function } callback: The function that needs to be scheduled. 
- * 
-  */
+ * The default implementation used by {@link SequentialTaskQueue} calls {@link setImmediate} when available,
+ * and {@link setTimeout} otherwise.
+ * @see {@link SequentialTaskQueue.defaultScheduler}
+ * @see {@link TaskQueueOptions#scheduler}
+ */
 export interface Scheduler {
+    /**
+     * Schedules a callback for asynchronous execution.
+     */
     schedule(callback: Function): void;
 }
 
 /**
  * Object used for passing configuration options to the {@link SequentialTaskQueue} constructor.
  */
-export interface TaskQueueOptions {
+export interface SequentialTaskQueueOptions {
     /**
      * Assigns a name to the task queue for diagnostic purposes. The name does not need to be unique.
      */
@@ -95,6 +99,10 @@ export var sequentialTaskQueueEvents = {
  */
 export class SequentialTaskQueue {
 
+    static defaultScheduler: Scheduler = {
+        schedule: callback => setTimeout(<any>callback, 0)
+    };
+
     private queue: TaskEntry[] = [];
     private _isClosed: boolean = false;
     private waiters: Function[] = [];
@@ -114,14 +122,12 @@ export class SequentialTaskQueue {
      * Creates a new instance of {@link SequentialTaskQueue}
      * @param {TaskQueueOptions} options - Configuration options for the task queue.
     */
-    constructor(options?: TaskQueueOptions) {
+    constructor(options?: SequentialTaskQueueOptions) {
         if (!options)
             options = {};
         this.defaultTimeout = options.timeout;
         this.name = options.name || "SequentialTaskQueue";
-        this.scheduler = options.scheduler || {
-            schedule: cb => setTimeout(<typeof setTimeout>cb, 0)
-        };
+        this.scheduler = options.scheduler || SequentialTaskQueue.defaultScheduler;
     }
 
     /**
@@ -322,7 +328,11 @@ function isPromise(obj: any): obj is PromiseLike<any> {
     return (obj && typeof obj.then === "function");
 }
 
-
+SequentialTaskQueue.defaultScheduler = {
+    schedule: typeof setImmediate === "function" 
+        ? callback => setImmediate(<(...args: any[]) => void>callback)
+        : callback => setTimeout(<(...args: any[]) => void>callback, 0)
+};
 
 
 
