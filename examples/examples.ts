@@ -5,9 +5,7 @@ import * as sinon from "sinon";
 describe("Examples", () => {
     describe("Basic usage", () => {
         it("", () => {
-            var console = {
-                log: sinon.spy()
-            }
+            sinon.spy(console, "log");
             // --- snippet: Basic usage ---
             var queue = new SequentialTaskQueue();
             queue.push(() => {
@@ -17,16 +15,19 @@ describe("Examples", () => {
                 console.log("second task");
             });
             // --- snip --- 
-            
-            return queue.wait().then(() => assert.deepEqual(console.log.args, [["first task"], ["second task"]]));
+            return queue.wait().then(() => {
+                try {
+                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [["first task"], ["second task"]]);
+                } finally {
+                    (<Sinon.SinonSpy>console.log).restore();
+                }
+            });
         });
     });
 
     describe("Promises", () => {
         it("", () => {
-            var console = {
-                log: sinon.spy()
-            };
+            sinon.spy(console, "log");
             // --- snippet: Promises  --- 
             var queue = new SequentialTaskQueue();
             queue.push(() => {
@@ -59,7 +60,13 @@ describe("Examples", () => {
             // 4
 
             // --- snip ---
-            return queue.wait().then(() => assert.deepEqual(console.log.args, [["1"], ["2"], ["3"], ["4"]]));
+            return queue.wait().then(() => {
+                try {
+                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [["1"], ["2"], ["3"], ["4"]])
+                } finally {
+                    (<Sinon.SinonSpy>console.log).restore();
+                }
+            });
         });
     });
 
@@ -132,9 +139,7 @@ describe("Examples", () => {
                     handler = cb;
                 }
             };
-            var console = {
-                log: sinon.spy()
-            }
+            sinon.spy(console, "log");
             var queue = new SequentialTaskQueue();
             // --- snippet: Arguments 1 ---
             backend.on("notification", (data) => {
@@ -149,7 +154,11 @@ describe("Examples", () => {
             handler(5);
             handler(7);
             return queue.wait().then(() => {
-                assert.deepEqual(console.log.args, [[1], [3], [5], [7]]); 
+                try {
+                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
+                } finally {
+                    (<Sinon.SinonSpy>console.log).restore();
+                }
             });
         });
 
@@ -160,9 +169,7 @@ describe("Examples", () => {
                     handler = cb;
                 }
             };
-            var console = {
-                log: sinon.spy()
-            }
+            sinon.spy(console, "log");
             var queue = new SequentialTaskQueue();
             // --- snippet: Arguments 2 ---
             backend.on("notification", (data) => {
@@ -179,7 +186,11 @@ describe("Examples", () => {
             handler(5);
             handler(7);
             return queue.wait().then(() => {
-                assert.deepEqual(console.log.args, [[1], [3], [5], [7]]); 
+                 try {
+                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
+                } finally {
+                    (<Sinon.SinonSpy>console.log).restore();
+                } 
             });
         });
     });

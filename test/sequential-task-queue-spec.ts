@@ -213,7 +213,7 @@ describe("SequentialTaskQueue", () => {
 
         it("should catch and report exception in handler", () => {
             var queue = new SequentialTaskQueue();
-            sinon.spy(console, "log");
+            sinon.spy(console, "error");
             queue.on("error", () => {
                 throw "Outer error";
             });
@@ -221,7 +221,12 @@ describe("SequentialTaskQueue", () => {
                 throw "Inner error";
             });
             return queue.wait().then(() => {
-                (<Sinon.SinonSpy>console.log).restore();
+                try {
+                // hard coded this error message, see SequentialTaskQueue.emit if this test fails
+                    assert((<Sinon.SinonSpy>console.error).calledWith("SequentialTaskQueue: Exception in 'error' event handler", "Outer error"));
+                } finally {
+                    (<Sinon.SinonSpy>console.error).restore();
+                }
             });
         });
     });
