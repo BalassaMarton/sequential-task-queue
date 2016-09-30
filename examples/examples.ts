@@ -136,14 +136,6 @@ describe("Examples", () => {
                 log: sinon.spy()
             }
             var queue = new SequentialTaskQueue();
-            // made some assumptions about closures and inner functions, better test that too :)
-            var originalPush = queue.push.bind(queue);
-            var stubId = 0;
-            sinon.stub(queue, "push", (fn, opts) => {
-                if (fn.__stub_id === undefined)
-                    fn.__stub_id = ++stubId;
-                originalPush(fn, opts);
-            });
             // --- snippet: Arguments 1 ---
             backend.on("notification", (data) => {
                 queue.push(() => {
@@ -157,7 +149,6 @@ describe("Examples", () => {
             handler(5);
             handler(7);
             return queue.wait().then(() => {
-                assert.equal(stubId, 4); 
                 assert.deepEqual(console.log.args, [[1], [3], [5], [7]]); 
             });
         });
@@ -173,14 +164,6 @@ describe("Examples", () => {
                 log: sinon.spy()
             }
             var queue = new SequentialTaskQueue();
-            // made some assumptions about closures and inner functions, better test that too :)
-            var originalPush = queue.push.bind(queue);
-            var stubId = 0;
-            sinon.stub(queue, "push", (fn, opts) => {
-                if (fn.__stub_id === undefined)
-                    fn.__stub_id = ++stubId;
-                originalPush(fn, opts);
-            });
             // --- snippet: Arguments 2 ---
             backend.on("notification", (data) => {
                 queue.push(handleNotifiation, { args: data });
@@ -196,7 +179,6 @@ describe("Examples", () => {
             handler(5);
             handler(7);
             return queue.wait().then(() => {
-                assert.equal(stubId, 1); 
                 assert.deepEqual(console.log.args, [[1], [3], [5], [7]]); 
             });
         });
