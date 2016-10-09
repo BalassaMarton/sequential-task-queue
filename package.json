@@ -5,9 +5,14 @@
   "author": {
     "name": "BalassaMarton"
   },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/BalassaMarton/sequential-task-queue"
+  },
   "types": "dist/types/sequential-task-queue.d.ts",
   "files": [
     "dist",
+    "doc",
     "index.js"
   ],
   "devDependencies": {
@@ -20,11 +25,14 @@
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "^1.6.0",
     "gulp-template": "^4.0.0",
+    "gulp-typedoc": "^2.0.0",
     "gulp-typescript": "^3.0.1",
     "mocha": "^3.0.2",
     "run-sequence": "^1.2.2",
     "sinon": "^1.17.5",
     "snip-text": "^1.0.0",
+    "typedoc": "^0.4.5",
+    "typedoc-markdown-theme": "0.0.4",
     "typescript": "^2.0.3"
   }
 }

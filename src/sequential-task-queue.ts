@@ -3,7 +3,7 @@
  * The default implementation used by {@link SequentialTaskQueue} calls {@link setImmediate} when available,
  * and {@link setTimeout} otherwise.
  * @see {@link SequentialTaskQueue.defaultScheduler}
- * @see {@link TaskQueueOptions#scheduler}
+ * @see {@link TaskQueueOptions.scheduler}
  */
 export interface Scheduler {
     /**
@@ -68,18 +68,18 @@ export interface CancellationToken {
     reason?: any;
     /**
      * Cancels the task for which the cancellation token was created.
-     * @param reason - The reason of the cancellation, see {@link CancellationToken#reason} 
+     * @param reason - The reason of the cancellation, see {@link CancellationToken.reason} 
      */
     cancel(reason?: any);
 }
 
 /**
- * Standard cancellation reasons. {@link SequentialTaskQueue} sets {@link CancellationToken#reason} 
+ * Standard cancellation reasons. {@link SequentialTaskQueue} sets {@link CancellationToken.reason} 
  * to one of these values when cancelling a task for a reason other than the user code calling
- * {@link CancellationToken#cancel}.    
+ * {@link CancellationToken.cancel}.    
  */
 export var cancellationTokenReasons = {
-    /** Used when the task was cancelled in response to a call to {@link SequentialTaskQueue#cancel} */
+    /** Used when the task was cancelled in response to a call to {@link SequentialTaskQueue.cancel} */
     cancel: Object.create(null),
     /** Used when the task was cancelled after its timeout has passed */
     timeout: Object.create(null)
@@ -113,14 +113,14 @@ export class SequentialTaskQueue {
 
     name: string;
 
-    /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue#push} on a closed queue will result in an exception. */
+    /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue.push} on a closed queue will result in an exception. */
     get isClosed() {
         return this._isClosed;
     }
 
     /** 
      * Creates a new instance of {@link SequentialTaskQueue}
-     * @param {TaskQueueOptions} options - Configuration options for the task queue.
+     * @param options - Configuration options for the task queue.
     */
     constructor(options?: SequentialTaskQueueOptions) {
         if (!options)
@@ -132,8 +132,8 @@ export class SequentialTaskQueue {
 
     /**
      * Adds a new task to the queue.
-     * @param {Function} task - The function to call when the task is run
-     * @param {number} timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue. 
+     * @param task - The function to call when the task is run
+     * @param timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue. 
      * @returns A {@link CancellationToken} that may be used to cancel the task before it completes.
      */
     push(task: Function, options?: TaskOptions): CancellationToken {
@@ -168,7 +168,7 @@ export class SequentialTaskQueue {
 
     /**
      * Closes the queue, preventing new tasks to be added. 
-     * Any calls to {@link SequentialTaskQueue#push} after closing the queue will result in an exception.
+     * Any calls to {@link SequentialTaskQueue.push} after closing the queue will result in an exception.
      * @param {boolean} cancel - Indicates that the queue should also be cancelled.
      * @returns {Promise} A Promise that is fulfilled when the queue has finished executing remaining tasks.  
      */
