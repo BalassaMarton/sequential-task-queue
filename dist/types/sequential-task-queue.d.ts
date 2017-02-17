@@ -3,7 +3,7 @@
  * The default implementation used by {@link SequentialTaskQueue} calls {@link setImmediate} when available,
  * and {@link setTimeout} otherwise.
  * @see {@link SequentialTaskQueue.defaultScheduler}
- * @see {@link TaskQueueOptions#scheduler}
+ * @see {@link TaskQueueOptions.scheduler}
  */
 export interface Scheduler {
     /**
@@ -64,14 +64,14 @@ export interface CancellationToken {
     reason?: any;
     /**
      * Cancels the task for which the cancellation token was created.
-     * @param reason - The reason of the cancellation, see {@link CancellationToken#reason}
+     * @param reason - The reason of the cancellation, see {@link CancellationToken.reason}
      */
     cancel(reason?: any): any;
 }
 /**
- * Standard cancellation reasons. {@link SequentialTaskQueue} sets {@link CancellationToken#reason}
+ * Standard cancellation reasons. {@link SequentialTaskQueue} sets {@link CancellationToken.reason}
  * to one of these values when cancelling a task for a reason other than the user code calling
- * {@link CancellationToken#cancel}.
+ * {@link CancellationToken.cancel}.
  */
 export declare var cancellationTokenReasons: {
     cancel: any;
@@ -86,6 +86,16 @@ export declare var sequentialTaskQueueEvents: {
     timeout: string;
 };
 /**
+ * Promise interface with the ability to cancel.
+ */
+export interface CancellablePromiseLike<T> extends PromiseLike<T> {
+    /**
+     * Cancels (and consequently, rejects) the task associated with the Promise.
+     * @param reason - Reason of the cancellation. This value will be passed when rejecting this Promise.
+     */
+    cancel(reason?: any): void;
+}
+/**
  * FIFO task queue to run tasks in predictable order, without concurrency.
  */
 export declare class SequentialTaskQueue {
@@ -98,20 +108,20 @@ export declare class SequentialTaskQueue {
     private scheduler;
     private events;
     name: string;
-    /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue#push} on a closed queue will result in an exception. */
+    /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue.push} on a closed queue will result in an exception. */
     readonly isClosed: boolean;
     /**
      * Creates a new instance of {@link SequentialTaskQueue}
-     * @param {TaskQueueOptions} options - Configuration options for the task queue.
+     * @param options - Configuration options for the task queue.
     */
     constructor(options?: SequentialTaskQueueOptions);
     /**
      * Adds a new task to the queue.
-     * @param {Function} task - The function to call when the task is run
-     * @param {number} timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue.
+     * @param task - The function to call when the task is run
+     * @param timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue.
      * @returns A {@link CancellationToken} that may be used to cancel the task before it completes.
      */
-    push(task: Function, options?: TaskOptions): CancellationToken;
+    push(task: Function, options?: TaskOptions): CancellablePromiseLike<any>;
     /**
      * Cancels the currently running task (if any), and clears the queue.
      * @returns {Promise} A Promise that is fulfilled when the queue is empty and the current task has been cancelled.
@@ -119,7 +129,7 @@ export declare class SequentialTaskQueue {
     cancel(): PromiseLike<any>;
     /**
      * Closes the queue, preventing new tasks to be added.
-     * Any calls to {@link SequentialTaskQueue#push} after closing the queue will result in an exception.
+     * Any calls to {@link SequentialTaskQueue.push} after closing the queue will result in an exception.
      * @param {boolean} cancel - Indicates that the queue should also be cancelled.
      * @returns {Promise} A Promise that is fulfilled when the queue has finished executing remaining tasks.
      */
@@ -146,6 +156,8 @@ export declare class SequentialTaskQueue {
      * @param {string} evt - Event name
      * @param {Function} handler - Event handler to be removed
      */
+    removeListener(evt: string, handler: Function): void;
+    /** @see {@link SequentialTaskQueue.removeListener} */
     off(evt: string, handler: Function): void;
     private emit(evt, ...args);
     private next();

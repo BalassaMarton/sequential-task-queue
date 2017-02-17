@@ -95,6 +95,17 @@ export var sequentialTaskQueueEvents = {
 }
 
 /**
+ * Promise interface with the ability to cancel.
+ */
+export interface CancellablePromiseLike<T> extends PromiseLike<T> {
+    /**
+     * Cancels (and consequently, rejects) the task associated with the Promise.
+     * @param reason - Reason of the cancellation. This value will be passed when rejecting this Promise.
+     */
+    cancel(reason?: any): void;
+}
+
+/**
  * FIFO task queue to run tasks in predictable order, without concurrency.
  */
 export class SequentialTaskQueue {
@@ -136,7 +147,7 @@ export class SequentialTaskQueue {
      * @param timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue. 
      * @returns A {@link CancellationToken} that may be used to cancel the task before it completes.
      */
-    push(task: Function, options?: TaskOptions): CancellationToken {
+    push(task: Function, options?: TaskOptions): CancellablePromiseLike<any> {
         if (this._isClosed)
             throw new Error(`${this.name} has been previously closed`);
         var taskEntry: TaskEntry = {
@@ -145,12 +156,19 @@ export class SequentialTaskQueue {
             timeout: options && options.timeout !== undefined ? options.timeout : this.defaultTimeout,
             cancellationToken: {
                 cancel: (reason?) => this.cancelTask(taskEntry, reason)
-            }
+            },
+            resolve: undefined,
+            reject: undefined
         };
         taskEntry.args.push(taskEntry.cancellationToken);
         this.queue.push(taskEntry);
         this.scheduler.schedule(() => this.next());
-        return taskEntry.cancellationToken;
+        var result = (new Promise((resolve, reject) => {
+            taskEntry.resolve = resolve;
+            taskEntry.reject = reject;
+        }) as any) as CancellablePromiseLike<any>;
+        result.cancel = (reason?: any) => taskEntry.cancellationToken.cancel(reason);
+        return result;
     }
 
     /**
@@ -160,9 +178,12 @@ export class SequentialTaskQueue {
     cancel(): PromiseLike<any> {
         if (this.currentTask) 
             this.cancelTask(this.currentTask, cancellationTokenReasons.cancel);
-        // emit a drained event if there were tasks waiting in the queue
-        if (this.queue.splice(0).length)
+        var queue = this.queue.splice(0);
+        // Cancel all and emit a drained event if there were tasks waiting in the queue
+        if (queue.length) {
+            queue.forEach(task => this.cancelTask(task, cancellationTokenReasons.cancel));
             this.emit(sequentialTaskQueueEvents.drained);
+        }
         return this.wait();
     }
 
@@ -210,7 +231,7 @@ export class SequentialTaskQueue {
      */
     once(evt: string, handler: Function) {
         var cb = (...args: any[]) => {
-            this.off(evt, cb);
+            this.removeListener(evt, cb);
             handler.apply(this, args);
         };
         this.on(evt, cb);
@@ -221,7 +242,7 @@ export class SequentialTaskQueue {
      * @param {string} evt - Event name
      * @param {Function} handler - Event handler to be removed
      */
-    off(evt: string, handler: Function) {
+    removeListener(evt: string, handler: Function) {
         if (this.events) {
             var list = this.events[evt];
             if (list) {
@@ -234,6 +255,11 @@ export class SequentialTaskQueue {
                 }
             }
         }
+    }
+
+    /** @see {@link SequentialTaskQueue.removeListener} */
+    off(evt: string, handler: Function) {
+        return this.removeListener(evt, handler);
     }
 
     private emit(evt: string, ...args: any[]) {
@@ -265,14 +291,17 @@ export class SequentialTaskQueue {
                     }
                     let res = task.callback.apply(undefined, task.args);
                     if (res && isPromise(res)) {
-                        res.then(() => {
+                        res.then(result => {
+                                task.result = result;
                                 this.doneTask(task);
                             },
                             err => {
                                 this.doneTask(task, err);
                             });
-                    } else
+                    } else {
+                        task.result = res;
                         this.doneTask(task);
+                    }
 
                 } catch (e) {
                     this.doneTask(task, e);
@@ -294,8 +323,14 @@ export class SequentialTaskQueue {
         if (task.timeoutHandle)
             clearTimeout(task.timeoutHandle);
         task.cancellationToken.cancel = noop;
-        if (error)
+        if (error) {
             this.emit(sequentialTaskQueueEvents.error, error);
+            task.reject.call(undefined, error);
+        } else if (task.cancellationToken.cancelled)
+            task.reject.call(undefined, task.cancellationToken.reason)
+        else
+            task.resolve.call(undefined, task.result);
+        
         if (this.currentTask === task) {
             this.currentTask = undefined;
             if (!this.queue.length) {
@@ -319,6 +354,9 @@ interface TaskEntry {
     timeout?: number;
     timeoutHandle?: any;
     cancellationToken: CancellationToken;
+    result?: any;
+    resolve: (value: any | PromiseLike<any>) => void;
+    reject: (reason?: any) => void;
 }
 
 function noop() {

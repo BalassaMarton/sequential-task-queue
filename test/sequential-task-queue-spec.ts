@@ -2,6 +2,10 @@
 import { SequentialTaskQueue, CancellationToken, cancellationTokenReasons } from "../src/sequential-task-queue";
 import * as sinon from "sinon";
 
+process.on('unhandledRejection', (err, p) => {
+  console.log('Suppressed unhandled rejection');
+});
+
 describe("SequentialTaskQueue", () => {
 
     it("should execute a task", () => {
@@ -14,12 +18,12 @@ describe("SequentialTaskQueue", () => {
     it("should execute a task with args (array)", () => {
         var queue = new SequentialTaskQueue();
         var spy = sinon.spy();
-        queue.push(spy, {args: [1, 2, 3]});
-        queue.push(spy, {args: [4, 5, 6]});
+        queue.push(spy, { args: [1, 2, 3] });
+        queue.push(spy, { args: [4, 5, 6] });
         return queue.wait().then(() => {
-            assert(spy.callCount == 2); 
+            assert(spy.callCount == 2);
             assert.deepEqual(spy.args[0].slice(0, 3), [1, 2, 3]);
-            assert.deepEqual(spy.args[1].slice(0, 3), [4, 5, 6]); 
+            assert.deepEqual(spy.args[1].slice(0, 3), [4, 5, 6]);
         });
     });
 
@@ -29,13 +33,13 @@ describe("SequentialTaskQueue", () => {
         queue.push(spy, { args: "foo" });
         queue.push(spy, { args: "bar" });
         return queue.wait().then(() => {
-            assert(spy.callCount == 2); 
+            assert(spy.callCount == 2);
             assert.deepEqual(spy.args[0].slice(0, 1), ["foo"]);
-            assert.deepEqual(spy.args[1].slice(0, 1), ["bar"]); 
+            assert.deepEqual(spy.args[1].slice(0, 1), ["bar"]);
         });
     });
 
-    it("should execute a chain of tasks", function() {
+    it("should execute a chain of tasks", function () {
 
         this.timeout(0);
 
@@ -79,9 +83,46 @@ describe("SequentialTaskQueue", () => {
                     queue.push(functions[j](idx));
                     idx++;
                 }
-            }                
+            }
         }
         return queue.wait().then(() => assert.deepEqual(results, expected));
+
+    });
+
+    describe("# push: Promise", () => {
+
+        it("should resolve when task is done", () => {
+            var queue = new SequentialTaskQueue();
+            var p = queue.push(() => {
+                return 123;
+            });
+            return p.then(result => assert.equal(result, 123));
+        });
+
+        it("should resolve when async task is done", () => {
+            var queue = new SequentialTaskQueue();
+            var p = queue.push(() => {
+                return new Promise(resolve => setTimeout(() => resolve(123), 100));
+            });
+            return p.then(result => assert.equal(result, 123));
+        });
+
+        it("should reject when task is cancelled", () => {
+            var queue = new SequentialTaskQueue();
+            var p = queue.push(() => {
+                return new Promise(resolve => setTimeout(() => resolve(123), 200));
+            });
+            setTimeout(() => p.cancel("meh"), 50);
+            return p.then(result => assert.ok(false), (reason) => assert.equal(reason, "meh"));
+        });
+
+        it("should reject when task fails", () => {
+            var queue = new SequentialTaskQueue();
+            var p = queue.push(() => {
+                throw "fail";
+            });
+            return p.then(result => assert.ok(false), (reason) => assert.equal(reason, "fail"));
+        });
 
     });
 
@@ -95,7 +136,7 @@ describe("SequentialTaskQueue", () => {
             var queue = new SequentialTaskQueue();
             var spy = sinon.spy();
             queue.push(() => spy());
-            return queue.wait().then(() => assert(spy.called));    
+            return queue.wait().then(() => assert(spy.called));
         });
 
         it("should resolve after previously resolved Promise", () => {
@@ -155,7 +196,7 @@ describe("SequentialTaskQueue", () => {
             }));
             var p1 = queue.wait();
             var p2 = queue.wait();
-            var p3 = queue.wait().then(() =>queue.wait());
+            var p3 = queue.wait().then(() => queue.wait());
             return Promise.all([p1, p2, p3]);
         });
 
@@ -222,22 +263,22 @@ describe("SequentialTaskQueue", () => {
             });
             return queue.wait().then(() => {
                 try {
-                // hard coded this error message, see SequentialTaskQueue.emit if this test fails
-                    assert((<Sinon.SinonSpy>console.error).calledWith("SequentialTaskQueue: Exception in 'error' event handler", "Outer error"));
+                    // hard coded this error message, see SequentialTaskQueue.emit if this test fails
+                    assert((<sinon.SinonSpy>console.error).calledWith("SequentialTaskQueue: Exception in 'error' event handler", "Outer error"));
                 } finally {
-                    (<Sinon.SinonSpy>console.error).restore();
+                    (<sinon.SinonSpy>console.error).restore();
                 }
             });
         });
     });
 
     describe("# event: drained", () => {
-        
+
         it("should notify when single-task chain has finished", () => {
             var queue = new SequentialTaskQueue();
             var spy = sinon.spy();
             queue.on("drained", spy);
-            queue.push(() => {});
+            queue.push(() => { });
             return queue.wait().then(() => { assert(spy.called); });
         });
 
@@ -334,30 +375,30 @@ describe("SequentialTaskQueue", () => {
             var queue = new SequentialTaskQueue();
             var spy = sinon.spy();
 
-            queue.push((ct: CancellationToken) => 
+            queue.push((ct: CancellationToken) =>
                 new Promise((resolve, reject) => {
                     setTimeout(() => {
-                            // cancel() should not have been cancelled at this point
-                            if (ct.cancelled)
-                                reject("cancelled");
-                            else {
-                                spy(1);
-                                resolve();
-                            }
-                        },
+                        // cancel() should not have been cancelled at this point
+                        if (ct.cancelled)
+                            reject("cancelled");
+                        else {
+                            spy(1);
+                            resolve();
+                        }
+                    },
                         10);
                 }).then(() => new Promise((resolve, reject) => {
                     setTimeout(() => {
-                            // cancel() should have been cancelled at this point
-                            if (ct.cancelled)
-                                reject("cancelled");
-                            else {
-                                spy(2);
-                                resolve();
-                            }
-                        },
+                        // cancel() should have been cancelled at this point
+                        if (ct.cancelled)
+                            reject("cancelled");
+                        else {
+                            spy(2);
+                            resolve();
+                        }
+                    },
                         100);
-            })));
+                })));
             setTimeout(() => queue.cancel(), 50);
             return queue.wait().then(() => {
                 assert(spy.calledWith(1) && !spy.calledWith(2));
@@ -373,7 +414,7 @@ describe("SequentialTaskQueue", () => {
                     var spy = sinon.spy();
                     var err = sinon.spy();
                     var timeouts = [50, 500, 50];
-                    
+
                     function pushTask(id, delay) {
                         queue.push((ct: CancellationToken) => new Promise(resolve => {
                             setTimeout(() => {
@@ -399,10 +440,10 @@ describe("SequentialTaskQueue", () => {
         it("should prevent adding more tasks", () => {
 
             var queue = new SequentialTaskQueue();
-            queue.push(() => {});
+            queue.push(() => { });
             queue.close();
             assert.throws(() => {
-                queue.push(() => {});
+                queue.push(() => { });
             });
 
         });
@@ -454,8 +495,7 @@ describe("CancellationToken", () => {
 
         it("should cancel running task and execute the next one immediately", () => {
             var clock = sinon.useFakeTimers();
-            try
-            {
+            try {
                 var queue = new SequentialTaskQueue();
                 var res = [];
                 queue.push(() => res.push(1));

@@ -1,6 +1,6 @@
 {
   "name": "sequential-task-queue",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "FIFO task queue for node and the browser",
   "author": {
     "name": "BalassaMarton"
@@ -16,23 +16,24 @@
     "index.js"
   ],
   "devDependencies": {
-    "@types/mocha": "^2.2.32",
-    "@types/node": "^6.0.41",
-    "@types/sinon": "^1.16.31",
+    "@types/mocha": "^2.2.39",
+    "@types/node": "^7.0.5",
+    "@types/sinon": "^1.16.35",
     "del": "^2.2.2",
     "gulp": "^3.9.1",
     "gulp-mocha": "^3.0.1",
     "gulp-rename": "^1.2.2",
-    "gulp-sourcemaps": "^1.6.0",
+    "gulp-sourcemaps": "^2.4.1",
     "gulp-template": "^4.0.0",
-    "gulp-typedoc": "^2.0.0",
-    "gulp-typescript": "^3.0.1",
-    "mocha": "^3.0.2",
+    "gulp-typedoc": "^2.0.2",
+    "gulp-typescript": "^3.1.5",
+    "mocha": "^3.2.0",
     "run-sequence": "^1.2.2",
-    "sinon": "^1.17.5",
+    "sinon": "^1.17.7",
     "snip-text": "^1.0.0",
-    "typedoc": "^0.4.5",
+    "typedoc": "^0.5.6",
     "typedoc-markdown-theme": "0.0.4",
-    "typescript": "^2.0.3"
+    "typescript": "^2.1.6",
+    "vinyl-paths": "^2.1.0"
   }
 }

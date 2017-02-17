@@ -17,9 +17,9 @@ describe("Examples", () => {
             // --- snip --- 
             return queue.wait().then(() => {
                 try {
-                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [["first task"], ["second task"]]);
+                    assert.deepEqual((<sinon.SinonSpy>console.log).args, [["first task"], ["second task"]]);
                 } finally {
-                    (<Sinon.SinonSpy>console.log).restore();
+                    (<sinon.SinonSpy>console.log).restore();
                 }
             });
         });
@@ -62,9 +62,9 @@ describe("Examples", () => {
             // --- snip ---
             return queue.wait().then(() => {
                 try {
-                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [["1"], ["2"], ["3"], ["4"]])
+                    assert.deepEqual((<sinon.SinonSpy>console.log).args, [["1"], ["2"], ["3"], ["4"]])
                 } finally {
-                    (<Sinon.SinonSpy>console.log).restore();
+                    (<sinon.SinonSpy>console.log).restore();
                 }
             });
         });
@@ -74,7 +74,7 @@ describe("Examples", () => {
         it("", () => {
             // --- snippet: Task cancellation ---
             var queue = new SequentialTaskQueue();
-            var ct = queue.push(token => {
+            var task = queue.push(token => {
                 return new Promise((resolve, reject) => {
                     setTimeout(resolve, 100);
                 }).then(() => new Promise((resolve, reject) => {
@@ -87,7 +87,7 @@ describe("Examples", () => {
                 });
             });
             setTimeout(() => {
-                ct.cancel();
+                task.cancel();
             }, 50);
             // --- snip ---
             return queue.wait();
@@ -155,9 +155,9 @@ describe("Examples", () => {
             handler(7);
             return queue.wait().then(() => {
                 try {
-                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
+                    assert.deepEqual((<sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
                 } finally {
-                    (<Sinon.SinonSpy>console.log).restore();
+                    (<sinon.SinonSpy>console.log).restore();
                 }
             });
         });
@@ -187,9 +187,9 @@ describe("Examples", () => {
             handler(7);
             return queue.wait().then(() => {
                  try {
-                    assert.deepEqual((<Sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
+                    assert.deepEqual((<sinon.SinonSpy>console.log).args, [[1], [3], [5], [7]]);
                 } finally {
-                    (<Sinon.SinonSpy>console.log).restore();
+                    (<sinon.SinonSpy>console.log).restore();
                 } 
             });
         });
