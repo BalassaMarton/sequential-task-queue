@@ -262,7 +262,7 @@ export class SequentialTaskQueue {
         return this.removeListener(evt, handler);
     }
 
-    private emit(evt: string, ...args: any[]) {
+    protected emit(evt: string, ...args: any[]) {
         if (this.events && this.events[evt])
             try { 
                 this.events[evt].forEach(fn => fn.apply(this, args));
@@ -271,7 +271,7 @@ export class SequentialTaskQueue {
             }
     }
 
-    private next() {
+    protected next() {
         // Try running the next task, if not currently running one 
         if (!this.currentTask) {
             var task = this.queue.shift();

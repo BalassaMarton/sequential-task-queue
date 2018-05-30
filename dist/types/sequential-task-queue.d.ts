@@ -159,8 +159,8 @@ export declare class SequentialTaskQueue {
     removeListener(evt: string, handler: Function): void;
     /** @see {@link SequentialTaskQueue.removeListener} */
     off(evt: string, handler: Function): void;
-    private emit(evt, ...args);
-    private next();
+    protected emit(evt: string, ...args: any[]): void;
+    protected next(): void;
     private cancelTask(task, reason?);
     private doneTask(task, error?);
     private callWaiters();

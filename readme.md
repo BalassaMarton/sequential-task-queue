@@ -193,6 +193,10 @@ The `timeout` event is emitted when a task is cancelled due to an expired timeou
 ---
 ## Changelog
 
+### 1.2.1
+
+`next` and `emit` are now protected instead of private.
+
 ### 1.2.0
 
 `SequentialTaskQueue.push` now returns a `Promise`. Earlier versions only returned a cancellation token.

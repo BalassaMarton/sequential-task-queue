@@ -1,6 +1,6 @@
 {
   "name": "sequential-task-queue",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "FIFO task queue for node and the browser",
   "author": {
     "name": "BalassaMarton"
