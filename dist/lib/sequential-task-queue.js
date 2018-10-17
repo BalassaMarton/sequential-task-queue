@@ -35,6 +35,7 @@ class SequentialTaskQueue {
         this.defaultTimeout = options.timeout;
         this.name = options.name || "SequentialTaskQueue";
         this.scheduler = options.scheduler || SequentialTaskQueue.defaultScheduler;
+        this.defaultPriority = options.priority != undefined? options.priority : Number.MAX_SAFE_INTEGER;
     }
     /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue.push} on a closed queue will result in an exception. */
     get isClosed() {
@@ -57,10 +58,11 @@ class SequentialTaskQueue {
                 cancel: (reason) => this.cancelTask(taskEntry, reason)
             },
             resolve: undefined,
-            reject: undefined
+            reject: undefined,
+            priority: Number(options && options.priority != undefined? options.priority : this.defaultPriority)
         };
         taskEntry.args.push(taskEntry.cancellationToken);
-        this.queue.push(taskEntry);
+        insertSorted(this.queue, taskEntry, (a, b) => a.priority > b.priority);
         this.scheduler.schedule(() => this.next());
         var result = new Promise((resolve, reject) => {
             taskEntry.resolve = resolve;
@@ -248,3 +250,11 @@ SequentialTaskQueue.defaultScheduler = {
         ? callback => setImmediate(callback)
         : callback => setTimeout(callback, 0)
 };
+function insertSorted(array, element, comparator) {
+    let i;
+    //Ineffective. Move to binary search in the future.
+    for(i = 0; i < array.length; ++i)
+        if(comparator(array[i], element))
+            break;
+    array.splice(i, 0, element);
+}
