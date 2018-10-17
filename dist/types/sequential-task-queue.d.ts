@@ -27,6 +27,10 @@ export interface SequentialTaskQueueOptions {
      * Scheduler used by the queue. Defaults to {@link SequentialTaskQueue.defaultScheduler}.
      */
     scheduler?: Scheduler;
+    /**
+     * Default priority of the task. Task with the lower value gets executed first.
+     * */
+    priority?: number;
 }
 /**
  * Options object for individual tasks.
@@ -49,6 +53,10 @@ export interface TaskOptions {
      * }
      */
     args?: any;
+    /**
+     * Priority of the task. Task with the lower value gets executed first.
+     * */
+    priority?: number;
 }
 /**
  * Provides the API for querying and invoking task cancellation.
@@ -107,6 +115,7 @@ export declare class SequentialTaskQueue {
     private currentTask;
     private scheduler;
     private events;
+    private defaultPriority;
     name: string;
     /** Indicates if the queue has been closed. Calling {@link SequentialTaskQueue.push} on a closed queue will result in an exception. */
     readonly isClosed: boolean;
