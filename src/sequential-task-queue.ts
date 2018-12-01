@@ -143,9 +143,9 @@ export class SequentialTaskQueue {
 
     /**
      * Adds a new task to the queue.
-     * @param task - The function to call when the task is run
-     * @param timeout - An optional timeout (in milliseconds) for the task, after which it should be cancelled to avoid hanging tasks clogging up the queue. 
-     * @returns A {@link CancellationToken} that may be used to cancel the task before it completes.
+     * @param {Function} task - The function to call when the task is run
+     * @param {TaskOptions} options - An object containing arguments and options for the task.
+     * @returns {CancellablePromiseLike<any>} A promise that can be used to await or cancel the task.
      */
     push(task: Function, options?: TaskOptions): CancellablePromiseLike<any> {
         if (this._isClosed)
